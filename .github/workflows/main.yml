@@ -29,18 +29,13 @@ jobs:
       run: |
         zig build
 
-    - name: Checkout history branch
-      run: |
-        git config --global user.name "jstrieb/github-stats"
-        git config --global user.email "github-stats[bot]@jstrieb.github.io"
-        # Push generated files to the generated branch
-        git pull
-        git checkout generated || git checkout -b generated
-
     - name: Generate images
       run: |
+        mkdir -p generated
         ./zig-out/bin/github-stats
       env:
+        OVERVIEW_OUTPUT_FILE: generated/overview.svg
+        LANGUAGES_OUTPUT_FILE: generated/languages.svg
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         EXCLUDE_REPOS: ${{ secrets.EXCLUDE_REPOS }}
         EXCLUDE_LANGS: ${{ secrets.EXCLUDE_LANGS }}
@@ -52,7 +47,11 @@ jobs:
 
     - name: Commit to the repo
       run: |
-        git add .
+        git config --global user.name "jstrieb/github-stats"
+        git config --global user.email "github-stats[bot]@jstrieb.github.io"
+        git add generated
         # Force the build to succeed, even if no files were changed
         git commit -m 'Update generated files' || true
-        git push --set-upstream origin generated
+        # Pick up anything pushed to the branch while this job was running
+        git pull --rebase
+        git push
